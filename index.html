@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🚗 Schiva il Traffico</title>
+  <style>
+    * { box-sizing: border-box; }
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:'Comic Sans MS', cursive, sans-serif;
+      background: radial-gradient(circle at top, #2c3e50, #111827 72%);
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+    }
+    .app{
+      width:min(980px, calc(100vw - 24px));
+      background:rgba(15, 23, 42, 0.84);
+      border:2px solid rgba(255,255,255,.12);
+      border-radius:28px;
+      padding:24px;
+      box-shadow:0 18px 50px rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
+      position:relative;
+    }
+    h1{
+      margin:0 0 8px;
+      text-align:center;
+      font-size:clamp(2rem, 4vw, 3.2rem);
+      color:#f1c40f;
+      text-shadow:0 2px 0 rgba(0,0,0,.35);
+    }
+    .subtitle{
+      text-align:center;
+      margin:0 0 18px;
+      opacity:.9;
+      line-height:1.5;
+    }
+    .topbar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      justify-content:center;
+      margin-bottom:16px;
+    }
+    .btn{
+      border:0;
+      border-radius:14px;
+      padding:12px 18px;
+      font:inherit;
+      font-weight:700;
+      cursor:pointer;
+      color:white;
+      background:#34495e;
+      transition:transform .15s ease, background .15s ease, box-shadow .15s ease;
+      box-shadow:0 8px 18px rgba(0,0,0,.18);
+    }
+    .btn:hover{ transform:translateY(-2px); background:#2ecc71; }
+    .btn:active{ transform:translateY(1px) scale(.98); }
+    .btn.secondary{ background:#8e44ad; }
+    .btn.secondary:hover{ background:#9b59b6; }
+
+    .scoreboard{
+      display:flex;
+      gap:12px;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      margin-bottom:14px;
+      font-size:1rem;
+    }
+    .pill{
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:999px;
+      padding:10px 14px;
+      min-width:130px;
+      text-align:center;
+    }
+
+    .screen{ display:none; }
+    .screen.show{ display:block; }
+
+    .playfield{
+      position:relative;
+      width:min(420px, 100%);
+      height:min(62vh,520px);
+      margin:0 auto;
+      border-radius:22px;
+      border:2px solid rgba(255,255,255,0.14);
+      background:repeating-linear-gradient(
+        180deg,
+        #3a3f47 0px, #3a3f47 40px,
+        #34383f 40px, #34383f 80px
+      );
+      overflow:hidden;
+    }
+    .lane-line{
+      position:absolute;
+      top:0;
+      bottom:0;
+      width:4px;
+      background-image:repeating-linear-gradient(180deg, rgba(255,255,255,.5) 0 24px, transparent 24px 48px);
+      background-position:0 var(--offset, 0px);
+    }
+    .car{
+      position:absolute;
+      width:52px;
+      height:88px;
+      border-radius:12px;
+      box-shadow:0 8px 16px rgba(0,0,0,.35);
+    }
+    .car::before{
+      content:'';
+      position:absolute;
+      top:14px; left:8px; right:8px; height:22px;
+      background:rgba(255,255,255,.35);
+      border-radius:6px;
+    }
+    .car.player{
+      background:linear-gradient(180deg, #2ecc71, #1fa855);
+      z-index:3;
+      transition: transform .3s ease;
+    }
+    .car.player.crashed{
+      animation: crashSpin .6s ease forwards;
+    }
+    @keyframes crashSpin{
+      0%{ transform:rotate(0deg) scale(1); }
+      30%{ transform:rotate(160deg) scale(1.08); }
+      60%{ transform:rotate(340deg) scale(.95); filter:brightness(1.3); }
+      100%{ transform:rotate(520deg) scale(.8); opacity:.4; filter:grayscale(.5) brightness(.7); }
+    }
+    .car.enemy{
+      background:linear-gradient(180deg, #e74c3c, #c0392b);
+      z-index:2;
+    }
+    .car.enemy.truck{
+      background:linear-gradient(180deg, #7f8c8d, #566065);
+      border:2px solid rgba(255,255,255,.15);
+    }
+    .car.enemy.truck::before{
+      top:auto;
+      bottom:14px;
+      height:16px;
+      background:rgba(255,255,255,.25);
+    }
+    .car.enemy.truck::after{
+      content:'';
+      position:absolute;
+      top:6px; left:8px; right:8px;
+      height:10px;
+      background:#f1c40f;
+      border-radius:3px;
+      opacity:.8;
+    }
+
+    .controls{
+      display:flex;
+      gap:14px;
+      justify-content:center;
+      margin-top:16px;
+    }
+    .ctrlBtn{
+      border:none;
+      border-radius:16px;
+      width:84px;
+      height:64px;
+      font-size:1.6rem;
+      cursor:pointer;
+      color:#fff;
+      background:#34495e;
+      box-shadow:0 10px 20px rgba(0,0,0,.22);
+      transition:transform .1s ease, background .15s ease;
+    }
+    .ctrlBtn:hover{ background:#2ecc71; }
+    .ctrlBtn:active{ transform:translateY(2px) scale(.96); }
+
+    .message{
+      text-align:center;
+      margin-top:14px;
+      min-height:1.5em;
+      font-weight:700;
+      line-height:1.4;
+    }
+    .footer{
+      margin-top:14px;
+      text-align:center;
+      opacity:.85;
+      font-size:.95rem;
+    }
+
+    .game-end{
+      text-align:center;
+      padding:22px 10px 6px;
+    }
+    .result{
+      font-size:clamp(1.4rem, 3vw, 2.3rem);
+      margin:10px 0 6px;
+      color:#f1c40f;
+    }
+
+    @media (max-width:640px){
+      .app{ padding:16px; border-radius:20px; }
+      .pill{ min-width: calc(50% - 6px); }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section id="homeScreen" class="screen show">
+      <h1>🚗 Schiva il Traffico</h1>
+      <p class="subtitle">Guida sulla tua corsia e schiva auto e camion che arrivano.<br>I camion sono più grandi e più difficili da evitare! Usa le frecce ⬅️➡️ della tastiera o i pulsanti a schermo. La velocità aumenta senza sosta.</p>
+
+      <div class="topbar">
+        <button class="btn" id="startBtn">Gioca</button>
+        <button class="btn secondary" id="resetBtn">Reset</button>
+        <button class="btn" id="commentsBtn">Commenti</button>
+        <button class="btn" id="funBtn">fun.games</button>
+      </div>
+
+      <div class="game-end">
+        <div class="result">Tieni gli occhi sulla strada.</div>
+        <p class="footer">Un gioco di riflessi e strada libera.</p>
+      </div>
+    </section>
+
+    <section id="gameScreen" class="screen">
+      <h1>🚗 Schiva il Traffico</h1>
+      <div class="scoreboard">
+        <div class="pill">Distanza: <span id="score">0</span> m</div>
+        <div class="pill">Velocità: <span id="speedLevel">1</span>x</div>
+      </div>
+
+      <div class="topbar">
+        <button class="btn secondary" id="backBtn">⬅ Torna alla home</button>
+      </div>
+
+      <div class="playfield" id="playfield"></div>
+
+      <div class="controls">
+        <button class="ctrlBtn" id="leftBtn">⬅️</button>
+        <button class="ctrlBtn" id="rightBtn">➡️</button>
+      </div>
+
+      <div class="message" id="message">Schiva le auto rosse e i camion grigi!</div>
+      <div class="footer">Più vai avanti, più il traffico è veloce e fitto.</div>
+    </section>
+
+    <section id="endScreen" class="screen">
+      <h1>🚗 Schiva il Traffico</h1>
+      <div class="game-end">
+        <div class="result" id="finalScore">Hai percorso 0 metri!</div>
+        <p class="subtitle" id="finalMessage">Hai guidato bene... o quasi.</p>
+        <div class="topbar">
+          <button class="btn" id="playAgainBtn">Gioca ancora</button>
+          <button class="btn secondary" id="backHomeBtn">Torna alla home</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const homeScreen = document.getElementById('homeScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const endScreen = document.getElementById('endScreen');
+
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const commentsBtn = document.getElementById('commentsBtn');
+    const funBtn = document.getElementById('funBtn');
+    const backBtn = document.getElementById('backBtn');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+    const backHomeBtn = document.getElementById('backHomeBtn');
+    const leftBtn = document.getElementById('leftBtn');
+    const rightBtn = document.getElementById('rightBtn');
+
+    const scoreEl = document.getElementById('score');
+    const speedLevelEl = document.getElementById('speedLevel');
+    const messageEl = document.getElementById('message');
+    const finalScore = document.getElementById('finalScore');
+    const finalMessage = document.getElementById('finalMessage');
+    const playfield = document.getElementById('playfield');
+
+    const LANES = 3;
+    let laneX = [];
+    let laneWidth = 0;
+    let carWidth = 52;
+
+    let playerLane = 1;
+    let playerEl = null;
+    let enemies = [];
+    let running = false;
+    let distance = 0;
+    let baseSpeed = 3.2;
+    let spawnTimer = null;
+    let rafId = null;
+    let lineOffset = 0;
+    let lastSpawnGap = 900;
+
+    function showScreen(screen) {
+      homeScreen.classList.remove('show');
+      gameScreen.classList.remove('show');
+      endScreen.classList.remove('show');
+      screen.classList.add('show');
+    }
+
+    function computeLanes() {
+      const w = playfield.clientWidth;
+      laneWidth = w / LANES;
+      laneX = [];
+      for (let i = 0; i < LANES; i++) {
+        laneX.push(i * laneWidth + laneWidth / 2 - carWidth / 2);
+      }
+    }
+
+    function currentSpeed() {
+      return baseSpeed + Math.min(distance / 40, 6);
+    }
+
+    function updateUI() {
+      scoreEl.textContent = Math.floor(distance);
+      speedLevelEl.textContent = (currentSpeed() / baseSpeed).toFixed(1);
+    }
+
+    function buildTrack() {
+      playfield.innerHTML = '';
+      computeLanes();
+      for (let i = 1; i < LANES; i++) {
+        const line = document.createElement('div');
+        line.className = 'lane-line';
+        line.style.left = (i * laneWidth) + 'px';
+        line.dataset.lineMarker = 'true';
+        playfield.appendChild(line);
+      }
+      playerEl = document.createElement('div');
+      playerEl.className = 'car player';
+      playerEl.style.left = laneX[playerLane] + 'px';
+      playerEl.style.bottom = '18px';
+      playfield.appendChild(playerEl);
+    }
+
+    function movePlayer(dir) {
+      if (!running) return;
+      const next = playerLane + dir;
+      if (next < 0 || next >= LANES) return;
+      playerLane = next;
+      playerEl.style.left = laneX[playerLane] + 'px';
+    }
+
+    const HIT_INSET_X = 14;
+    const HIT_INSET_Y = 20;
+
+    function spawnEnemy() {
+      if (!running) return;
+      const lane = Math.floor(Math.random() * LANES);
+      const isTruck = Math.random() < Math.min(0.2 + distance * 0.0015, 0.4);
+      const height = isTruck ? 132 : 88;
+
+      const el = document.createElement('div');
+      el.className = 'car enemy' + (isTruck ? ' truck' : '');
+      el.style.left = laneX[lane] + 'px';
+      el.style.height = height + 'px';
+      el.style.top = -(height + 20) + 'px';
+      playfield.appendChild(el);
+      enemies.push({ el, lane, y: -(height + 20), height });
+
+      lastSpawnGap = Math.max(420, 950 - distance * 4);
+      spawnTimer = setTimeout(spawnEnemy, lastSpawnGap);
+    }
+
+    function checkCollision(enemyLane, enemyY, enemyHeight) {
+      const playerLeft = laneX[playerLane] + HIT_INSET_X;
+      const playerRight = laneX[playerLane] + carWidth - HIT_INSET_X;
+      const playerTop = playfield.clientHeight - 18 - 88 + HIT_INSET_Y;
+      const playerBottom = playfield.clientHeight - 18 - HIT_INSET_Y;
+
+      const enemyLeft = laneX[enemyLane] + HIT_INSET_X;
+      const enemyRight = laneX[enemyLane] + carWidth - HIT_INSET_X;
+      const enemyTop = enemyY + HIT_INSET_Y;
+      const enemyBottom = enemyY + enemyHeight - HIT_INSET_Y;
+
+      const overlapX = playerLeft < enemyRight && playerRight > enemyLeft;
+      const overlapY = enemyTop < playerBottom && enemyBottom > playerTop;
+      return overlapX && overlapY;
+    }
+
+    function loop() {
+      if (!running) return;
+      const speed = currentSpeed();
+      distance += speed * 0.05;
+      updateUI();
+
+      lineOffset = (lineOffset + speed) % 48;
+      document.querySelectorAll('.lane-line').forEach(l => {
+        l.style.backgroundPosition = '0 ' + lineOffset + 'px';
+      });
+
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        e.y += speed;
+        e.el.style.top = e.y + 'px';
+
+        if (e.lane === playerLane && checkCollision(e.lane, e.y, e.height)) {
+          endGame();
+          return;
+        }
+
+        if (e.y > playfield.clientHeight + 20) {
+          e.el.remove();
+          enemies.splice(i, 1);
+        }
+      }
+
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function startGame() {
+      distance = 0;
+      playerLane = 1;
+      enemies = [];
+      running = true;
+      updateUI();
+      messageEl.textContent = 'Schiva le auto rosse e i camion grigi!';
+      showScreen(gameScreen);
+      buildTrack();
+
+      clearTimeout(spawnTimer);
+      spawnTimer = setTimeout(spawnEnemy, 700);
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function stopTimers() {
+      clearTimeout(spawnTimer);
+      cancelAnimationFrame(rafId);
+    }
+
+    function resetGame() {
+      running = false;
+      stopTimers();
+      distance = 0;
+      playerLane = 1;
+      enemies = [];
+      playfield.innerHTML = '';
+      updateUI();
+      messageEl.textContent = 'Schiva le auto rosse e i camion grigi!';
+      showScreen(homeScreen);
+    }
+
+    function endGame() {
+      running = false;
+      stopTimers();
+
+      messageEl.textContent = 'Incidente! 💥';
+      if (playerEl) playerEl.classList.add('crashed');
+
+      finalScore.textContent = 'Hai percorso ' + Math.floor(distance) + ' metri!';
+      if (distance < 150) {
+        finalMessage.textContent = 'Un incidente di percorso, riprova!';
+      } else if (distance < 400) {
+        finalMessage.textContent = 'Bella guida! Hai retto parecchia strada.';
+      } else {
+        finalMessage.textContent = 'Incredibile! Un vero pilota da strada.';
+      }
+
+      // Mostra l'effetto di schianto sulla schermata di gioco prima di passare al riepilogo finale
+      setTimeout(() => {
+        showScreen(endScreen);
+      }, 650);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (!running) return;
+      if (e.key === 'ArrowLeft') movePlayer(-1);
+      if (e.key === 'ArrowRight') movePlayer(1);
+    });
+    leftBtn.addEventListener('click', () => movePlayer(-1));
+    rightBtn.addEventListener('click', () => movePlayer(1));
+
+    startBtn.addEventListener('click', startGame);
+    playAgainBtn.addEventListener('click', startGame);
+    resetBtn.addEventListener('click', resetGame);
+    backBtn.addEventListener('click', resetGame);
+    backHomeBtn.addEventListener('click', resetGame);
+    commentsBtn.addEventListener('click', () => window.open('https://github.com/wmichaeljackson/schiva-il-traffico/discussions/1', '_blank'));
+    funBtn.addEventListener('click', () => location.href = 'https://wmichaeljackson.github.io/fun.games/');
+
+    updateUI();
+    showScreen(homeScreen);
+  </script>
+</body>
+</html>
